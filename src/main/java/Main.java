@@ -6,6 +6,29 @@ public class Main {
 
     public static void main(String[] args) {
         final int n = 1000;
+
+        Thread threadLog = new Thread(() -> {
+            int count = 0;
+            while (!Thread.currentThread().isInterrupted()) {
+                synchronized (sizeToFreq) {
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                    if (Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
+                    int keyMaxFreq = findKeyMaxFreq(sizeToFreq);
+                    System.out.println(String.format("%d: Текущий лидер %d с частотой %d", count++, keyMaxFreq, sizeToFreq.get(keyMaxFreq)));
+
+                }
+            }
+            System.out.println("Логирующий поток завершил работу");
+        });
+        threadLog.start();
+
         List<Thread> threads = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             threads.add(new Thread(() -> {
@@ -17,6 +40,8 @@ public class Main {
                     } else {
                         sizeToFreq.put(count, 1);
                     }
+                    sizeToFreq.notifyAll();
+
                 }
                 //System.out.println(path + " -> " + count);
             }));
@@ -31,6 +56,8 @@ public class Main {
             }
         }
 
+        threadLog.interrupt();
+
         int key = findKeyMaxFreq(sizeToFreq);
 
         int max = sizeToFreq.remove(key);
@@ -39,7 +66,6 @@ public class Main {
         for (Map.Entry<Integer, Integer> entry : sizeToFreq.entrySet()) {
             System.out.println(String.format("- %d (%d раз)", entry.getKey(), entry.getValue()));
         }
-
     }
 
     public static int findKeyMaxFreq(Map<Integer, Integer> map) {
